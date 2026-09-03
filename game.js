@@ -19,9 +19,17 @@ let renderer, camera, world, player, playerTexture, clock, animationFrame;
 let active = false, paused = false, ended = false, lane = 1, targetLane = 1, playerY = 1.15, verticalVelocity = 0, sliding = false, distance = 0, spawnTimer = 0, pickupTimer = 0, obstacles = [], pickups = [], touchStart = null;
 
 function startGame() {
-    homeScreen.classList.add('hidden'); gameScreen.classList.remove('hidden'); $('#pause-panel').classList.add('hidden'); $('#gameover-panel').classList.add('hidden'); $('#mode-label').textContent = modes[selectedMode].label;
-    setupScene(); active = true; paused = false; ended = false; distance = 0; lane = 1; targetLane = 1; playerY = 1.15; verticalVelocity = 0; sliding = false; spawnTimer = .7; pickupTimer = .4; clock = new THREE.Clock(); animationFrame = requestAnimationFrame(loop);
+    if (!window.THREE) return showBootError('The 3D engine did not load. Refresh the page and try again.');
+    try {
+        cancelAnimationFrame(animationFrame);
+        homeScreen.classList.add('hidden'); gameScreen.classList.remove('hidden'); $('#pause-panel').classList.add('hidden'); $('#gameover-panel').classList.add('hidden'); $('#mode-label').textContent = modes[selectedMode].label;
+        setupScene(); active = true; paused = false; ended = false; distance = 0; lane = 1; targetLane = 1; playerY = 1.15; verticalVelocity = 0; sliding = false; spawnTimer = .7; pickupTimer = .4; clock = new THREE.Clock(); animationFrame = requestAnimationFrame(loop);
+    } catch (error) {
+        console.error('Run471K could not start:', error);
+        showBootError('3D mode could not start in this browser. Please enable WebGL or try another browser.');
+    }
 }
+function showBootError(message) { const errorBox = $('#boot-error'); errorBox.textContent = message; errorBox.classList.remove('hidden'); }
 function setupScene() {
     if (renderer) renderer.dispose(); sceneContainer.innerHTML = ''; world = new THREE.Scene(); world.background = new THREE.Color(0x08141b); world.fog = new THREE.Fog(0x08141b, 16, 58);
     camera = new THREE.PerspectiveCamera(57, sceneContainer.clientWidth / sceneContainer.clientHeight, .1, 100); camera.position.set(0, 5.1, 9.2); camera.lookAt(0, 1.7, -12);

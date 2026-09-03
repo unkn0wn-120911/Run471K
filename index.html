@@ -9,12 +9,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.468.0/font/Lucide.css">
     <link rel="stylesheet" href="styles.css">
+    <style>
+        .launch-status{display:flex;gap:18px;align-items:center;border-left:2px solid #20e3c2;padding:9px 0 9px 14px;margin-top:28px;font:9px 'Space Mono',monospace;color:#789692;letter-spacing:1px}.launch-status b{color:#20e3c2;font-weight:400}.boot-error{position:fixed;z-index:50;left:50%;top:50%;transform:translate(-50%,-50%);width:min(420px,85vw);padding:24px;background:#170f14;border:1px solid #e04d48;color:#e9f2e9;font:12px 'Space Mono',monospace;line-height:1.6}
+    </style>
 </head>
 <body>
     <main id="app">
         <section id="home-screen" class="screen">
             <div class="home-topline"><span class="signal-dot"></span> RUN471K / NEON DISTRICT <span class="topline-right">SEASON 01</span></div>
-            <div class="hero-copy"><p class="eyebrow">THE CITY NEVER STOPS</p><h1>RUN<span>471K</span></h1><p class="hero-subtitle">A three-lane sprint through a living neon skyline.</p></div>
+            <div class="hero-copy"><p class="eyebrow"><span class="signal-dot"></span> THE CITY NEVER STOPS</p><h1>RUN<span>471K</span></h1><p class="hero-subtitle">A three-lane sprint through a living neon skyline.</p><div class="launch-status"><span>RUNNER READY</span><b>PRESS START TO ENTER THE GRID</b></div></div>
             <div class="home-grid">
                 <div class="mode-panel">
                     <div class="panel-heading"><span>SELECT RUN</span><small>01 / 03</small></div>
@@ -35,6 +38,7 @@
             <div class="gesture-hint"><i class="icon-move"></i><span>SWIPE TO MOVE</span></div>
         </section>
     </main>
+    <div id="boot-error" class="boot-error hidden"></div>
     <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
     <script src="game.js"></script>
 </body>
