@@ -1,28 +1,41 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-            <title>Run471K</title>
-                <style>
-                        body {
-                                    margin: 0;
-                                                padding: 0;
-                                                            background: #1a1a1a;
-                                                                        display: flex;
-                                                                                    justify-content: center;
-                                                                                                align-items: center;
-                                                                                                            min-height: 100vh;
-                                                                                                                        overflow: hidden;
-                                                                                                                                }
-                                                                                                                                        #game-container {
-                                                                                                                                                    box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
-                                                                                                                                                            }
-                                                                                                                                                                </style>
-                                                                                                                                                                </head>
-                                                                                                                                                                <body>
-                                                                                                                                                                    <div id="game-container"></div>
-                                                                                                                                                                        <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
-                                                                                                                                                                            <script src="game.js"></script>
-                                                                                                                                                                            </body>
-                                                                                                                                                                            </html>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Run471K | Neon Rush</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.468.0/font/Lucide.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <main id="app">
+        <section id="home-screen" class="screen">
+            <div class="home-topline"><span class="signal-dot"></span> RUN471K / NEON DISTRICT <span class="topline-right">SEASON 01</span></div>
+            <div class="hero-copy"><p class="eyebrow">THE CITY NEVER STOPS</p><h1>RUN<span>471K</span></h1><p class="hero-subtitle">A three-lane sprint through a living neon skyline.</p></div>
+            <div class="home-grid">
+                <div class="mode-panel">
+                    <div class="panel-heading"><span>SELECT RUN</span><small>01 / 03</small></div>
+                    <button class="mode-card selected" data-mode="classic"><span class="mode-icon"><i class="icon-zap"></i></span><span><b>CLASSIC RUSH</b><small>THE ORIGINAL ROUTE</small></span><i class="icon-chevron-right"></i></button>
+                    <button class="mode-card" data-mode="zen"><span class="mode-icon"><i class="icon-waves"></i></span><span><b>ZEN CIRCUIT</b><small>LOWER SPEED / CLEAN LINES</small></span><i class="icon-chevron-right"></i></button>
+                    <button class="mode-card locked" data-mode="night"><span class="mode-icon"><i class="icon-moon"></i></span><span><b>NIGHT RUN</b><small>COMING SOON</small></span><i class="icon-lock-keyhole"></i></button>
+                    <button id="play-button" class="primary-button"><span>START RUN</span><i class="icon-arrow-up-right"></i></button>
+                </div>
+                <aside class="stats-panel"><div class="stat-block"><span>BEST DISTANCE</span><strong id="home-best">000000</strong><small>METERS</small></div><div class="stat-rule"></div><div class="stat-block"><span>RUNNER STATUS</span><strong class="status-live"><i class="signal-dot"></i> READY</strong><small>ALL SYSTEMS NOMINAL</small></div><div class="control-key"><span>MOVE</span><b>←  ↑  ↓  →</b></div></aside>
+            </div>
+            <footer class="home-footer"><span>© 2026 RUN471K LABS</span><span>BUILT FOR THE BOLD</span></footer>
+        </section>
+        <section id="game-screen" class="screen hidden">
+            <div id="scene-container"></div>
+            <div class="hud"><div class="hud-brand">RUN<span>471K</span><small id="mode-label">CLASSIC RUSH</small></div><div class="hud-score"><small>DISTANCE</small><strong id="score">000000</strong></div><button id="pause-button" class="icon-button" aria-label="Pause"><i class="icon-pause"></i></button></div>
+            <div id="pause-panel" class="pause-panel hidden"><p>RUN PAUSED</p><button id="resume-button" class="primary-button">RESUME <i class="icon-play"></i></button><button id="home-button" class="text-button">EXIT TO HOME</button></div>
+            <div id="gameover-panel" class="pause-panel hidden"><p>RUN ENDED</p><strong id="final-score">000000</strong><small>DISTANCE METERS</small><button id="retry-button" class="primary-button">RUN AGAIN <i class="icon-rotate-ccw"></i></button><button id="gameover-home-button" class="text-button">EXIT TO HOME</button></div>
+            <div class="gesture-hint"><i class="icon-move"></i><span>SWIPE TO MOVE</span></div>
+        </section>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
