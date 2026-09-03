@@ -16,6 +16,7 @@ $('#retry-button').addEventListener('click', startGame);
 $('#home-button').addEventListener('click', showHome);
 $('#gameover-home-button').addEventListener('click', showHome);
 let renderer, camera, world, player, playerTexture, clock, animationFrame;
+let runnerParts = {};
 let active = false, paused = false, ended = false, lane = 1, targetLane = 1, playerY = 1.15, verticalVelocity = 0, sliding = false, distance = 0, spawnTimer = 0, pickupTimer = 0, obstacles = [], pickups = [], touchStart = null;
 
 function startGame() {
@@ -45,7 +46,31 @@ function createCity() {
     const colors = [0x12353b, 0x183248, 0x1c2939, 0x223a3d];
     for (let side = -1; side <= 1; side += 2) for (let index = 0; index < 20; index++) { const height = 2 + Math.random() * 7; const building = new THREE.Mesh(new THREE.BoxGeometry(2.2 + Math.random() * 2, height, 2.4), new THREE.MeshStandardMaterial({ color: colors[index % colors.length], roughness: .8 })); building.position.set(side * (6.2 + Math.random() * 3), height / 2, -index * 4 - 5); world.add(building); for (let window = 0; window < 3; window++) { const glow = new THREE.Mesh(new THREE.PlaneGeometry(.28, .14), new THREE.MeshBasicMaterial({ color: index % 3 ? 0x35c9b4 : 0xffca69 })); glow.position.set(building.position.x - side * 1.11, 1.1 + window * .65, building.position.z + 1.22); glow.rotation.y = side * Math.PI / 2; world.add(glow); } }
 }
-function createPlayer() { player = new THREE.Sprite(new THREE.SpriteMaterial({ map: getPlayerTexture(), transparent: true, depthTest: true })); player.scale.set(2.25, 5.02, 1); player.position.set(0, playerY + 1.25, 2.1); world.add(player); }
+function createPlayer() {
+    player = new THREE.Group();
+    const skin = new THREE.MeshStandardMaterial({ color: 0x9b5f3e, roughness: .7 });
+    const suit = new THREE.MeshStandardMaterial({ color: 0x20a99a, emissive: 0x073d3e, emissiveIntensity: .45, roughness: .45 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x18212d, roughness: .75 });
+    const shoe = new THREE.MeshStandardMaterial({ color: 0xe7f3e8, roughness: .45 });
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(.72, 1.05, .48), suit);
+    torso.position.y = 1.62;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(.34, 16, 12), skin);
+    head.position.y = 2.45;
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(.35, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), dark);
+    hair.position.y = 2.58;
+    runnerParts.leftArm = new THREE.Group(); runnerParts.rightArm = new THREE.Group();
+    runnerParts.leftArm.add(createLimb(.18, .78, .18, skin)); runnerParts.rightArm.add(createLimb(.18, .78, .18, skin));
+    runnerParts.leftArm.position.set(-.47, 1.82, 0); runnerParts.rightArm.position.set(.47, 1.82, 0);
+    runnerParts.leftLeg = new THREE.Group(); runnerParts.rightLeg = new THREE.Group();
+    runnerParts.leftLeg.add(createLimb(.22, .9, .22, dark)); runnerParts.rightLeg.add(createLimb(.22, .9, .22, dark));
+    runnerParts.leftLeg.position.set(-.22, 1.05, 0); runnerParts.rightLeg.position.set(.22, 1.05, 0);
+    const leftShoe = new THREE.Mesh(new THREE.BoxGeometry(.3, .16, .55), shoe); leftShoe.position.set(0, -.48, .11);
+    const rightShoe = leftShoe.clone(); runnerParts.leftLeg.add(leftShoe); runnerParts.rightLeg.add(rightShoe);
+    const watch = new THREE.Mesh(new THREE.BoxGeometry(.12, .14, .12), new THREE.MeshStandardMaterial({ color: 0xb8ff5b, emissive: 0x71ff22, emissiveIntensity: 2 })); watch.position.set(-.55, 1.57, -.02);
+    player.add(torso, head, hair, runnerParts.leftArm, runnerParts.rightArm, runnerParts.leftLeg, runnerParts.rightLeg, watch);
+    player.scale.set(.95, .95, .95); player.position.set(0, playerY, 2.1); world.add(player);
+}
+function createLimb(width, height, depth, material) { const limb = new THREE.Mesh(new THREE.CapsuleGeometry(width / 2, height - width, 8, 4), material); limb.position.y = -height / 2; return limb; }
 function getPlayerTexture() {
     if (playerTexture) return playerTexture; const image = new Image(); image.src = 'assets/player_spritesheet.png'; const canvas = document.createElement('canvas'); canvas.width = 416; canvas.height = 928; const context = canvas.getContext('2d');
     image.onload = () => { context.drawImage(image, 0, 0, 416, 928, 0, 0, 416, 928); const data = context.getImageData(0, 0, 416, 928); for (let index = 0; index < data.data.length; index += 4) { const red = data.data[index], green = data.data[index + 1], blue = data.data[index + 2]; if (Math.min(red, green, blue) > 215 && Math.max(red, green, blue) - Math.min(red, green, blue) < 25) data.data[index + 3] = 0; } context.putImageData(data, 0, 0); playerTexture.needsUpdate = true; };
@@ -57,7 +82,17 @@ function loop() {
     if (!active) return; animationFrame = requestAnimationFrame(loop); if (paused || ended) return; const delta = Math.min(clock.getDelta(), .05), mode = modes[selectedMode]; distance += delta * mode.speed * 100; scoreLabel.textContent = String(Math.floor(distance)).padStart(6, '0'); spawnTimer -= delta; pickupTimer -= delta;
     if (spawnTimer <= 0) { spawnObstacle(); spawnTimer = Math.max(.62, 1.25 - distance / 2200); } if (pickupTimer <= 0) { spawnPickup(); pickupTimer = .75; } updatePlayer(delta); updateObjects(delta, mode.speed); renderer.render(world, camera);
 }
-function updatePlayer(delta) { lane += (targetLane - lane) * Math.min(1, delta * 10); player.position.x = (lane - 1) * 2.9; if (verticalVelocity || playerY > 1.15) { verticalVelocity -= 19 * delta; playerY += verticalVelocity * delta; if (playerY <= 1.15) { playerY = 1.15; verticalVelocity = 0; } } player.position.y = playerY + 1.25; player.scale.y += ((sliding ? 3.05 : 5.02) - player.scale.y) * Math.min(1, delta * 12); }
+function updatePlayer(delta) {
+    lane += (targetLane - lane) * Math.min(1, delta * 10); player.position.x = (lane - 1) * 2.9;
+    if (verticalVelocity || playerY > 1.15) { verticalVelocity -= 19 * delta; playerY += verticalVelocity * delta; if (playerY <= 1.15) { playerY = 1.15; verticalVelocity = 0; } }
+    player.position.y = playerY;
+    const runTime = performance.now() * .012;
+    const stride = sliding || playerY > 1.2 ? 0 : Math.sin(runTime) * .75;
+    runnerParts.leftLeg.rotation.x = stride; runnerParts.rightLeg.rotation.x = -stride;
+    runnerParts.leftArm.rotation.x = -stride * .8; runnerParts.rightArm.rotation.x = stride * .8;
+    player.rotation.z = (targetLane - lane) * -.12;
+    player.scale.y += ((sliding ? .62 : .95) - player.scale.y) * Math.min(1, delta * 12);
+}
 function updateObjects(delta, speed) {
     const travel = speed * delta * 28; world.children.forEach((object) => { if (object.userData.scroll) object.position.z += travel; });
     obstacles = obstacles.filter((object) => { object.position.z += travel; object.rotation.y += delta * .4; if (object.position.z > 5) { world.remove(object); return false; } if (Math.abs(object.position.z - 2.1) < 1 && Math.abs(object.position.x - player.position.x) < 1.15 && playerY < object.userData.height + .35 && !sliding) endGame(); return true; });
