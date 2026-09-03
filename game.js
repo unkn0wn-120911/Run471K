@@ -17,7 +17,9 @@ let currentLane = 1; // 0=বাম, 1=মাঝ, 2=ডান
 let isMoving = false;
 let scene;
 let isJumping = false;
+let isSliding = false;
 let playerOriginalY;
+let playerRunTween;
 
 // ৩টা লেনের X পজিশন
 const LANE_WIDTH = 120;
@@ -69,13 +71,8 @@ const game = new Phaser.Game(config);
 function preload() {
     scene = this;
     
-    // Ben 10 ক্যারেক্টার স্প্রাইটশিট লোড
-    this.load.spritesheet('player', 'assets/player_spritesheet.png', {
-        frameWidth: 416,
-        frameHeight: 928,
-        margin: 0,
-        spacing: 0
-    });
+    // Load the sheet as an image so the baked checkerboard can be removed.
+    this.load.image('playerSheet', 'assets/player_spritesheet.png');
     this.load.on('loaderror', (file) => {
         console.error('Could not load game asset:', file.key, file.src);
     });
@@ -85,6 +82,60 @@ function preload() {
     
     // এখনকার জন্য placeholder texture তৈরি করছি (যদি spritesheet না থাকে)
     createPlaceholderTextures(this);
+}
+
+function createTransparentPlayerTexture(scene) {
+    const source = scene.textures.get('playerSheet').getSourceImage();
+    const canvas = document.createElement('canvas');
+    canvas.width = source.width;
+    canvas.height = source.height;
+    const context = canvas.getContext('2d');
+    context.drawImage(source, 0, 0);
+
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    const pixels = imageData.data;
+    const visited = new Uint8Array(canvas.width * canvas.height);
+    const stack = [];
+    const isBackground = (index) => {
+        const red = pixels[index];
+        const green = pixels[index + 1];
+        const blue = pixels[index + 2];
+        return Math.min(red, green, blue) > 215 &&
+            Math.max(red, green, blue) - Math.min(red, green, blue) < 25;
+    };
+    const addPixel = (x, y) => {
+        const index = y * canvas.width + x;
+        if (!visited[index] && isBackground(index * 4)) {
+            visited[index] = 1;
+            stack.push(index);
+        }
+    };
+
+    for (let x = 0; x < canvas.width; x++) {
+        addPixel(x, 0);
+        addPixel(x, canvas.height - 1);
+    }
+    for (let y = 0; y < canvas.height; y++) {
+        addPixel(0, y);
+        addPixel(canvas.width - 1, y);
+    }
+
+    while (stack.length) {
+        const index = stack.pop();
+        const x = index % canvas.width;
+        const y = Math.floor(index / canvas.width);
+        pixels[index * 4 + 3] = 0;
+        if (x > 0) addPixel(x - 1, y);
+        if (x < canvas.width - 1) addPixel(x + 1, y);
+        if (y > 0) addPixel(x, y - 1);
+        if (y < canvas.height - 1) addPixel(x, y + 1);
+    }
+
+    context.putImageData(imageData, 0, 0);
+    scene.textures.addSpriteSheet('player', canvas, {
+        frameWidth: 416,
+        frameHeight: 928
+    });
 }
 
 function createPlaceholderTextures(scene) {
@@ -129,6 +180,9 @@ function create() {
     currentLane = 1;
     isMoving = false;
     isJumping = false;
+    isSliding = false;
+
+    createTransparentPlayerTexture(this);
     
     // রাস্তা ব্যাকগ্রাউন্ড
     this.add.image(CENTER_X, GAME_HEIGHT / 2, 'road');
@@ -160,28 +214,29 @@ function create() {
         'player'
     );
     player.setScale(0.14);
-    player.setFrame(1);
+    player.setFrame(0);
     player.setCollideWorldBounds(true);
     player.setDepth(10);
     
-    // The sheet has one standing pose followed by three running poses.
+    // The first sheet panel is the only forward-facing pose.
     this.anims.create({
         key: 'idle',
         frames: [{ key: 'player', frame: 0 }],
         frameRate: 1
     });
     this.anims.create({
-        key: 'run',
-        frames: this.anims.generateFrameNumbers('player', { start: 1, end: 3 }),
-        frameRate: 10,
+        key: 'runForward',
+        frames: [{ key: 'player', frame: 0 }],
+        frameRate: 1,
         repeat: -1
     });
     this.anims.create({
         key: 'jump',
-        frames: [{ key: 'player', frame: 3 }],
+        frames: [{ key: 'player', frame: 0 }],
         frameRate: 1
     });
-    player.anims.play('run');
+    player.anims.play('runForward');
+    startPlayerRunMotion();
     
     // Obstacle ও Coin গ্রুপ
     obstacles = this.physics.add.group();
@@ -227,6 +282,7 @@ function create() {
     this.keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
     this.keyW = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
     this.keyUp = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
+    this.keyDown = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN);
     
     // টাচ কন্ট্রোল (মোবাইলের জন্য)
     this.input.on('pointerdown', handleTouchStart);
@@ -252,6 +308,10 @@ function update() {
         Phaser.Input.Keyboard.JustDown(this.keyW) ||
         Phaser.Input.Keyboard.JustDown(this.keyUp)) {
         jump();
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.down) ||
+        Phaser.Input.Keyboard.JustDown(this.keyDown)) {
+        slide();
     }
     
     // Obstacle গুলো নিচে নামানো
@@ -320,9 +380,21 @@ function moveRight() {
     }
 }
 
+function startPlayerRunMotion() {
+    playerRunTween = scene.tweens.add({
+        targets: player,
+        y: playerOriginalY - 5,
+        duration: 180,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.inOut'
+    });
+}
+
 function jump() {
-    if (!isJumping && !gameOver) {
+    if (!isJumping && !isSliding && !gameOver) {
         isJumping = true;
+        playerRunTween.stop();
         
         // Jump animation play (যদি থাকে)
         try {
@@ -345,17 +417,35 @@ function jump() {
                     onComplete: () => {
                         isJumping = false;
                         if (!gameOver) {
-                            try {
-                                player.anims.play('run');
-                            } catch (e) {
-                                // No animation available
-                            }
+                            player.anims.play('runForward');
+                            startPlayerRunMotion();
                         }
                     }
                 });
             }
         });
     }
+}
+
+function slide() {
+    if (isJumping || isSliding || gameOver) return;
+
+    isSliding = true;
+    playerRunTween.stop();
+    scene.tweens.add({
+        targets: player,
+        y: playerOriginalY + 35,
+        scaleY: 0.09,
+        duration: 160,
+        yoyo: true,
+        hold: 220,
+        ease: 'Sine.inOut',
+        onComplete: () => {
+            isSliding = false;
+            player.setScale(0.14);
+            if (!gameOver) startPlayerRunMotion();
+        }
+    });
 }
 
 // ============================================
@@ -516,8 +606,9 @@ function handleTouchEnd(pointer) {
         } else {
             // Vertical swipe
             if (deltaY < -30) {
-                // উপরে swipe = jump
                 jump();
+            } else if (deltaY > 30) {
+                slide();
             }
         }
     }
