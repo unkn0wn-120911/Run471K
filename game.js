@@ -17,7 +17,7 @@ $('#home-button').addEventListener('click', showHome);
 $('#gameover-home-button').addEventListener('click', showHome);
 let renderer, camera, world, player, playerTexture, clock, animationFrame;
 let runnerParts = {};
-let active = false, paused = false, ended = false, lane = 1, targetLane = 1, playerY = 1.15, verticalVelocity = 0, sliding = false, distance = 0, spawnTimer = 0, pickupTimer = 0, obstacles = [], pickups = [], touchStart = null;
+let active = false, paused = false, ended = false, lane = 1, targetLane = 1, playerY = 1.15, verticalVelocity = 0, sliding = false, distance = 0, spawnTimer = 0, pickupTimer = 0, obstacles = [], pickups = [], touchStart = null, slideTimer;
 
 function startGame() {
     if (!window.THREE) return showBootError('The 3D engine did not load. Refresh the page and try again.');
@@ -68,7 +68,7 @@ function createPlayer() {
     const rightShoe = leftShoe.clone(); runnerParts.leftLeg.add(leftShoe); runnerParts.rightLeg.add(rightShoe);
     const watch = new THREE.Mesh(new THREE.BoxGeometry(.12, .14, .12), new THREE.MeshStandardMaterial({ color: 0xb8ff5b, emissive: 0x71ff22, emissiveIntensity: 2 })); watch.position.set(-.55, 1.57, -.02);
     player.add(torso, head, hair, runnerParts.leftArm, runnerParts.rightArm, runnerParts.leftLeg, runnerParts.rightLeg, watch);
-    player.scale.set(.95, .95, .95); player.position.set(0, playerY, 2.1); world.add(player);
+    player.scale.set(.72, .72, .72); player.position.set(0, playerY, 2.1); world.add(player);
 }
 function createLimb(width, height, depth, material) { const limb = new THREE.Mesh(new THREE.CapsuleGeometry(width / 2, height - width, 8, 4), material); limb.position.y = -height / 2; return limb; }
 function getPlayerTexture() {
@@ -91,20 +91,22 @@ function updatePlayer(delta) {
     runnerParts.leftLeg.rotation.x = stride; runnerParts.rightLeg.rotation.x = -stride;
     runnerParts.leftArm.rotation.x = -stride * .8; runnerParts.rightArm.rotation.x = stride * .8;
     player.rotation.z = (targetLane - lane) * -.12;
-    player.scale.y += ((sliding ? .62 : .95) - player.scale.y) * Math.min(1, delta * 12);
+    player.scale.y += ((sliding ? .5 : .72) - player.scale.y) * Math.min(1, delta * 12);
 }
 function updateObjects(delta, speed) {
     const travel = speed * delta * 28; world.children.forEach((object) => { if (object.userData.scroll) object.position.z += travel; });
     obstacles = obstacles.filter((object) => { object.position.z += travel; object.rotation.y += delta * .4; if (object.position.z > 5) { world.remove(object); return false; } if (Math.abs(object.position.z - 2.1) < 1 && Math.abs(object.position.x - player.position.x) < 1.15 && playerY < object.userData.height + .35 && !sliding) endGame(); return true; });
     pickups = pickups.filter((coin) => { coin.position.z += travel; coin.rotation.z += delta * 4; if (coin.position.z > 5) { world.remove(coin); return false; } if (Math.abs(coin.position.z - 2.1) < 1.2 && Math.abs(coin.position.x - player.position.x) < 1.1 && Math.abs(coin.position.y - player.position.y) < 2) { distance += 25; world.remove(coin); return false; } return true; });
 }
-function move(direction) { targetLane = Math.max(0, Math.min(2, targetLane + direction)); }
-function jump() { if (playerY <= 1.16 && !sliding) verticalVelocity = 8.2; }
-function slide() { if (playerY <= 1.2) { sliding = true; setTimeout(() => { sliding = false; }, 600); } }
+function move(direction) { if (!active || paused || ended) return; targetLane = Math.max(0, Math.min(2, targetLane + direction)); player.position.x = (targetLane - 1) * 2.9; }
+function jump() { if (active && !paused && !ended && playerY <= 1.16 && !sliding) verticalVelocity = 8.2; }
+function slide() { if (active && !paused && !ended && playerY <= 1.2) { sliding = true; clearTimeout(slideTimer); slideTimer = setTimeout(() => { sliding = false; }, 600); } }
 function togglePause() { if (!active || ended) return; paused = !paused; $('#pause-panel').classList.toggle('hidden', !paused); if (!paused) clock.getDelta(); }
 function endGame() { if (ended) return; ended = true; const final = Math.floor(distance); if (final > bestScore) { bestScore = final; localStorage.setItem('run471k-best', bestScore); homeBest.textContent = String(bestScore).padStart(6, '0'); } $('#final-score').textContent = String(final).padStart(6, '0'); $('#gameover-panel').classList.remove('hidden'); }
 function showHome() { active = false; ended = true; cancelAnimationFrame(animationFrame); window.removeEventListener('resize', resizeGame); homeScreen.classList.remove('hidden'); gameScreen.classList.add('hidden'); }
 function resizeGame() { if (!renderer) return; camera.aspect = sceneContainer.clientWidth / sceneContainer.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(sceneContainer.clientWidth, sceneContainer.clientHeight); }
 window.addEventListener('keydown', (event) => { if (event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a') move(-1); if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') move(1); if (event.key === 'ArrowUp' || event.key.toLowerCase() === 'w') jump(); if (event.key === 'ArrowDown' || event.key.toLowerCase() === 's') slide(); if (event.key === 'Escape') togglePause(); });
-sceneContainer.addEventListener('pointerdown', (event) => { touchStart = { x: event.clientX, y: event.clientY, time: Date.now() }; });
+document.querySelectorAll('.mobile-controls button').forEach((button) => button.addEventListener('pointerdown', (event) => { event.preventDefault(); const action = button.dataset.action; if (action === 'left') move(-1); if (action === 'right') move(1); if (action === 'jump') jump(); if (action === 'slide') slide(); }));
+sceneContainer.addEventListener('pointerdown', (event) => { if (!active || paused || ended) return; sceneContainer.setPointerCapture(event.pointerId); touchStart = { x: event.clientX, y: event.clientY, time: Date.now() }; });
 sceneContainer.addEventListener('pointerup', (event) => { if (!touchStart) return; const start = touchStart; touchStart = null; const dx = event.clientX - start.x, dy = event.clientY - start.y; if (Date.now() - start.time > 700 || Math.max(Math.abs(dx), Math.abs(dy)) < 24) return; if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 1 : -1); else if (dy < 0) jump(); else slide(); });
+sceneContainer.addEventListener('pointercancel', () => { touchStart = null; });
