@@ -71,10 +71,13 @@ function preload() {
     
     // Ben 10 ক্যারেক্টার স্প্রাইটশিট লোড
     this.load.spritesheet('player', 'assets/player_spritesheet.png', {
-        frameWidth: 128,
-        frameHeight: 128,
+        frameWidth: 416,
+        frameHeight: 928,
         margin: 0,
         spacing: 0
+    });
+    this.load.on('loaderror', (file) => {
+        console.error('Could not load game asset:', file.key, file.src);
     });
     
     // আপনার ক্যারেক্টার ইমেজ লোড করতে চাইলে নিচের লাইনটা আনকমেন্ট করুন
@@ -85,18 +88,7 @@ function preload() {
 }
 
 function createPlaceholderTextures(scene) {
-    // Player placeholder (নীল রঙের ক্যারেক্টার)
-    let g = scene.add.graphics();
-    g.fillStyle(0x00aaff, 1);
-    g.fillRoundedRect(0, 0, 50, 70, 10);
-    g.fillStyle(0xffffff, 1);
-    g.fillCircle(17, 20, 5);
-    g.fillCircle(33, 20, 5);
-    g.fillStyle(0x000000, 1);
-    g.fillCircle(17, 20, 2);
-    g.fillCircle(33, 20, 2);
-    g.generateTexture('player', 50, 70);
-    g.destroy();
+    let g;
     
     // Obstacle placeholder (লাল বাধা)
     g = scene.add.graphics();
@@ -167,39 +159,29 @@ function create() {
         playerOriginalY, 
         'player'
     );
+    player.setScale(0.14);
+    player.setFrame(1);
     player.setCollideWorldBounds(true);
     player.setDepth(10);
     
-    // অ্যানিমেশন তৈরি (যদি স্প্রাইটশিট লোড হয়েছে)
-    try {
-        this.anims.create({
-            key: 'idle',
-            frames: [{ key: 'player', frame: 0 }],
-            frameRate: 1
-        });
-        
-        this.anims.create({
-            key: 'run',
-            frames: [
-                { key: 'player', frame: 1 },
-                { key: 'player', frame: 2 },
-                { key: 'player', frame: 3 }
-            ],
-            frameRate: 10,
-            repeat: -1
-        });
-        
-        this.anims.create({
-            key: 'jump',
-            frames: [{ key: 'player', frame: 4 }],
-            frameRate: 1
-        });
-        
-        // ডিফল্ট অ্যানিমেশন চালু
-        player.anims.play('run');
-    } catch (e) {
-        console.log('Using placeholder textures');
-    }
+    // The sheet has one standing pose followed by three running poses.
+    this.anims.create({
+        key: 'idle',
+        frames: [{ key: 'player', frame: 0 }],
+        frameRate: 1
+    });
+    this.anims.create({
+        key: 'run',
+        frames: this.anims.generateFrameNumbers('player', { start: 1, end: 3 }),
+        frameRate: 10,
+        repeat: -1
+    });
+    this.anims.create({
+        key: 'jump',
+        frames: [{ key: 'player', frame: 3 }],
+        frameRate: 1
+    });
+    player.anims.play('run');
     
     // Obstacle ও Coin গ্রুপ
     obstacles = this.physics.add.group();
